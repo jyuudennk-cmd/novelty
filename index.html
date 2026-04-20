@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ノベルティ発注システム</title>
+  <style>
+    :root { --primary: #6f42c1; --success: #28a745; --danger: #e63946; --bg: #f4f7f6; }
+    body { font-family: sans-serif; background: var(--bg); padding: 20px; max-width: 950px; margin: 0 auto; padding-bottom: 120px; }
+    h1 { text-align: center; color: #444; }
+    
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .input-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+    .input-group { flex: 1; min-width: 200px; }
+    .input-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+
+    /* リスト外注文エリアのテーブル */
+    .special-order-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .special-order-table th { background: #eee; padding: 10px; font-size: 0.85em; text-align: left; }
+    .special-order-table td { padding: 8px 5px; border-bottom: 1px solid #eee; }
+    
+    /* マスタアイテム */
+    .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .item-card { background: white; border-radius: 10px; padding: 15px; display: flex; align-items: center; border: 1px solid #eee; }
+    .item-card img { width: 70px; height: 70px; object-fit: cover; border-radius: 5px; margin-right: 15px; background: #f9f9f9; }
+    
+    /* フッター */
+    .footer-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 900px; background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+    .btn-submit { background: var(--danger); color: white; border: none; padding: 12px 35px; border-radius: 30px; font-weight: bold; cursor: pointer; }
+
+    /* モーダル */
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; }
+    
+    /* 合計金額表示用 */
+    .total-price-box { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; text-align: right; font-size: 1.2em; font-weight: bold; margin-top: 15px; border: 1px solid #ffeeba; }
+
+    @media (max-width: 600px) {
+      .special-order-table th, .special-order-table td { display: block; width: 100%; }
+      .special-order-table tr { border-bottom: 2px solid #ccc; padding-bottom: 15px; margin-bottom: 15px; display: block; }
+      .special-order-table td { border-bottom: none; padding: 4px 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>ノベルティ発注システム</h1>
+
+  <div class="card">
+    <div class="input-row">
+      <div class="input-group">
+        <label>発注店舗</label>
+        <select id="storeSelect">
+          <option value="">店舗を選択</option>
+          <option value="店舗A">店舗A</option>
+          <option value="店舗B">店舗B</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>発注者名</label>
+        <input type="text" id="userName" placeholder="氏名">
+      </div>
+    </div>
+  </div>
+
+  <h3>定番アイテム（マスタから選択）</h3>
+  <div id="masterList" class="item-grid">読み込み中...</div>
+
+  <div class="card">
+    <h3>カタログ外・特殊注文（URL指定）</h3>
+    <p style="font-size: 0.8em; color: #666;">※マスタにないものは、商品名、URL、数量、売価(単価)を入力してください。</p>
+    <table class="special-order-table">
+      <thead>
+        <tr>
+          <th style="width: 30%;">商品名</th>
+          <th style="width: 35%;">商品URL</th>
+          <th style="width: 15%;">数量</th>
+          <th style="width: 20%;">売価(単価)</th>
+        </tr>
+      </thead>
+      <tbody id="specialOrderBody">
+        </tbody>
+    </table>
+  </div>
+
+  <div class="footer-bar">
+    <div id="cartStatus" style="font-weight: bold; color: var(--primary);">選択中: 0 点</div>
+    <button class="btn-submit" onclick="confirmOrder()">発注内容を確認する</button>
+  </div>
+
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <h3 style="text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px;">発注内容の確認</h3>
+      <div id="modalUserInfo" style="font-weight: bold; margin-bottom: 15px; color: #555;"></div>
+      
+      <ul id="summaryList" style="padding: 0; list-style: none; margin-bottom: 0;"></ul>
+      
+      <div id="totalBox" class="total-price-box">
+        概算合計: <span id="totalAmount">¥0</span>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button onclick="closeModal()" style="flex:1; padding: 12px; border:none; border-radius:5px; background:#eee; cursor:pointer; font-weight:bold;">修正に戻る</button>
+        <button id="execBtn" onclick="submitOrder()" style="flex:1; padding: 12px; background: var(--success); color: white; border: none; border-radius: 5px; cursor:pointer; font-weight:bold;">発注確定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GAS_URL = 'あなたのGASのURL'; // ★最新のURLに書き換え
+    let cart = [];
+
+    // 15行の入力欄を生成（売価を追加）
+    const tbody = document.getElementById('specialOrderBody');
+    for (let i = 0; i < 15; i++) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="sp-name" placeholder="商品名 ${i+1}"></td>
+        <td><input type="url" class="sp-url" placeholder="https://..."></td>
+        <td><input type="number" class="sp-qty" value="1" min="1"></td>
+        <td><input type="number" class="sp-price" placeholder="単価(円)" min="0"></td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    // マスタデータの読み込み
+    window.onload = async () => {
+      try {
+        const res = await fetch(GAS_URL);
+        const items = await res.json();
+        const container = document.getElementById('masterList');
+        container.innerHTML = '';
+        items.forEach((item, idx) => {
+          container.innerHTML += `
+            <div class="item-card">
+              <img src="${item.imageUrl || 'https://placehold.jp/70x70.png'}">
+              <div style="flex:1">
+                <div style="font-weight:bold; font-size:0.9em; margin-bottom:5px;">${item.name}</div>
+                <input type="number" id="mq-${idx}" value="1" min="1" style="width:50px; padding:5px;"> 個
+              </div>
+              <button onclick="addMasterItem('${item.name}', ${idx})" style="padding:6px 12px; cursor:pointer; background:var(--primary); color:white; border:none; border-radius:4px;">追加</button>
+            </div>
+          `;
+        });
+      } catch(e) { console.error(e); }
+    };
+
+    function addMasterItem(name, idx) {
+      const qty = document.getElementById(`mq-${idx}`).value;
+      // マスタ品はひとまず売価を空（またはシステム上で別途管理）として扱う
+      cart.push({ name: name, quantity: qty, url: "マスタ内商品", price: "" });
+      
+      // 追加フィードバック
+      const btn = event.target;
+      btn.innerText = '✔';
+      btn.style.background = 'var(--success)';
+      setTimeout(() => { btn.innerText = '追加'; btn.style.background = 'var(--primary)'; }, 700);
+      
+      updateStatus();
+    }
+
+    function updateStatus() {
+      const specialCount = Array.from(document.querySelectorAll('.sp-name')).filter(el => el.value.trim() !== "").length;
+      document.getElementById('cartStatus').innerText = `選択中: ${cart.length + specialCount} 点`;
+    }
+
+    function confirmOrder() {
+      const store = document.getElementById('storeSelect').value;
+      const user = document.getElementById('userName').value;
+      if(!store || !user) { alert("店舗と氏名を選択・入力してください"); return; }
+
+      // データの収集
+      const finalItems = [...cart];
+      const names = document.querySelectorAll('.sp-name');
+      const urls = document.querySelectorAll('.sp-url');
+      const qtys = document.querySelectorAll('.sp-qty');
+      const prices = document.querySelectorAll('.sp-price');
+
+      names.forEach((el, i) => {
+        if(el.value.trim() !== "") {
+          finalItems.push({
+            name: el.value,
+            url: urls[i].value,
+            quantity: qtys[i].value,
+            price: prices[i].value // 売価を取得
+          });
+        }
+      });
+
+      if(finalItems.length === 0) { alert("注文アイテムが一つもありません"); return; }
+
+      // モーダルへ描画
+      document.getElementById('modalUserInfo').innerText = `店舗: ${store} / 発注者: ${user}`;
+      const list = document.getElementById('summaryList');
+      list.innerHTML = "";
+      
+      let grandTotal = 0;
+
+      finalItems.forEach(item => {
+        // 金額の計算（未入力の場合は0として扱う）
+        const priceNum = parseInt(item.price) || 0;
+        const qtyNum = parseInt(item.quantity) || 1;
+        const subTotal = priceNum * qtyNum;
+        grandTotal += subTotal;
+
+        // 表示用の文字列（単価が入力されていれば表示）
+        const priceDisplay = priceNum > 0 ? `¥${priceNum.toLocaleString()} × ${qtyNum}個` : `${qtyNum}個`;
+        const subTotalDisplay = priceNum > 0 ? `<b style="color:var(--danger);">小計: ¥${subTotal.toLocaleString()}</b>` : '';
+
+        list.innerHTML += `
+          <li style="border-bottom:1px solid #eee; padding:10px 0;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+              <b>${item.name}</b>
+              <span>${priceDisplay}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85em;">
+              <span style="color:#888; word-break: break-all; max-width: 70%;">${item.url}</span>
+              ${subTotalDisplay}
+            </div>
+          </li>`;
+      });
+
+      // 合計金額の表示
+      document.getElementById('totalAmount').innerText = `¥${grandTotal.toLocaleString()}`;
+
+      window.currentOrder = finalItems;
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+    async function submitOrder() {
+      const btn = document.getElementById('execBtn');
+      btn.disabled = true; btn.innerText = "送信中...";
+      
+      const payload = {
+        store: document.getElementById('storeSelect').value,
+        user: document.getElementById('userName').value,
+        items: window.currentOrder
+      };
+
+      try {
+        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+        const result = await res.json();
+        if(result.status === "success") {
+          alert("発注が完了しました！");
+          location.reload();
+        }
+      } catch(e) { 
+        alert("通信エラーが発生しました。"); 
+        btn.disabled = false; 
+        btn.innerText = "発注確定"; 
+      }
+    }
+  </script>
+</body>
+</html>

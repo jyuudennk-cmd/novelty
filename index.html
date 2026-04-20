@@ -3,255 +3,234 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ノベルティ発注システム</title>
+  <title>ノベルティ発注</title>
   <style>
-    :root { --primary: #6f42c1; --success: #28a745; --danger: #e63946; --bg: #f4f7f6; }
-    body { font-family: sans-serif; background: var(--bg); padding: 20px; max-width: 950px; margin: 0 auto; padding-bottom: 120px; }
-    h1 { text-align: center; color: #444; }
+    :root { --main: #6f42c1; --bg: #f0f2f5; --card: #ffffff; }
+    body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; }
     
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .input-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
-    .input-group { flex: 1; min-width: 200px; }
-    .input-group label { display: block; font-weight: bold; margin-bottom: 5px; }
-    input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+    /* タブ切り替え */
+    .tab-nav { display: flex; background: #fff; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #ddd; }
+    .tab-btn { flex: 1; padding: 15px; text-align: center; border: none; background: none; font-weight: bold; color: #777; cursor: pointer; }
+    .tab-btn.active { color: var(--main); border-bottom: 3px solid var(--main); }
 
-    /* リスト外注文エリアのテーブル */
-    .special-order-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .special-order-table th { background: #eee; padding: 10px; font-size: 0.85em; text-align: left; }
-    .special-order-table td { padding: 8px 5px; border-bottom: 1px solid #eee; }
-    
-    /* マスタアイテム */
-    .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px; }
-    .item-card { background: white; border-radius: 10px; padding: 15px; display: flex; align-items: center; border: 1px solid #eee; }
-    .item-card img { width: 70px; height: 70px; object-fit: cover; border-radius: 5px; margin-right: 15px; background: #f9f9f9; }
-    
+    .content-section { display: none; padding: 15px; }
+    .content-section.active { display: block; }
+
+    /* 入力フォーム */
+    .form-card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .label { font-size: 0.85em; font-weight: bold; color: #666; display: block; margin-bottom: 5px; }
+    input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
+
+    /* アイテムリスト（スマホ最適化） */
+    .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+    .item-name { font-weight: bold; font-size: 0.95em; flex: 1; }
+    .qty-ctrl { display: flex; align-items: center; gap: 10px; }
+    .btn-add { background: var(--main); color: #fff; border: none; padding: 8px 15px; border-radius: 5px; font-size: 0.85em; }
+
+    /* 特殊注文テーブル（スマホでは縦並びに） */
+    .sp-row { border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+    .sp-row input { margin-bottom: 5px; }
+
+    /* 履歴カード */
+    .log-card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 4px solid var(--main); font-size: 0.85em; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .log-date { color: #888; font-size: 0.8em; margin-bottom: 5px; }
+    .log-flex { display: flex; justify-content: space-between; font-weight: bold; }
+
     /* フッター */
-    .footer-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 900px; background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
-    .btn-submit { background: var(--danger); color: white; border: none; padding: 12px 35px; border-radius: 30px; font-weight: bold; cursor: pointer; }
+    .footer { position: fixed; bottom: 0; width: 100%; background: #fff; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; }
+    .btn-confirm { background: #e63946; color: #fff; border: none; padding: 12px 25px; border-radius: 25px; font-weight: bold; }
 
     /* モーダル */
-    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
-    .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; }
-    
-    /* 合計金額表示用 */
-    .total-price-box { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; text-align: right; font-size: 1.2em; font-weight: bold; margin-top: 15px; border: 1px solid #ffeeba; }
-
-    @media (max-width: 600px) {
-      .special-order-table th, .special-order-table td { display: block; width: 100%; }
-      .special-order-table tr { border-bottom: 2px solid #ccc; padding-bottom: 15px; margin-bottom: 15px; display: block; }
-      .special-order-table td { border-bottom: none; padding: 4px 0; }
-    }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-inner { background: #fff; width: 90%; max-height: 80vh; border-radius: 15px; padding: 20px; overflow-y: auto; }
+    .sum-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px dashed #ddd; }
   </style>
 </head>
 <body>
 
-  <h1>ノベルティ発注システム</h1>
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('order')">発注作成</button>
+    <button class="tab-btn" onclick="switchTab('history')">注文履歴</button>
+  </div>
 
-  <div class="card">
-    <div class="input-row">
-      <div class="input-group">
-        <label>発注店舗</label>
-        <select id="storeSelect">
-          <option value="">店舗を選択</option>
-          <option value="店舗A">店舗A</option>
-          <option value="店舗B">店舗B</option>
-        </select>
-      </div>
-      <div class="input-group">
-        <label>発注者名</label>
-        <input type="text" id="userName" placeholder="氏名">
-      </div>
+  <div id="order" class="content-section active">
+    <div class="form-card">
+      <label>発注店舗</label>
+      <select id="storeSelect"><option>読み込み中...</option></select>
+      <label>担当者名</label>
+      <input type="text" id="userName" placeholder="名前を入力">
     </div>
+
+    <h3>定番アイテム</h3>
+    <div class="form-card" id="masterList">読み込み中...</div>
+
+    <h3>カタログ外注文 (最大15件)</h3>
+    <div class="form-card" id="specialOrderArea"></div>
   </div>
 
-  <h3>定番アイテム（マスタから選択）</h3>
-  <div id="masterList" class="item-grid">読み込み中...</div>
-
-  <div class="card">
-    <h3>カタログ外・特殊注文（URL指定）</h3>
-    <p style="font-size: 0.8em; color: #666;">※マスタにないものは、商品名、URL、数量、売価(単価)を入力してください。</p>
-    <table class="special-order-table">
-      <thead>
-        <tr>
-          <th style="width: 30%;">商品名</th>
-          <th style="width: 35%;">商品URL</th>
-          <th style="width: 15%;">数量</th>
-          <th style="width: 20%;">売価(単価)</th>
-        </tr>
-      </thead>
-      <tbody id="specialOrderBody">
-        </tbody>
-    </table>
+  <div id="history" class="content-section">
+    <div class="form-card">
+      <label>表示店舗を絞り込む</label>
+      <select id="historyFilter" onchange="renderLogs()"></select>
+    </div>
+    <div id="logArea"></div>
   </div>
 
-  <div class="footer-bar">
-    <div id="cartStatus" style="font-weight: bold; color: var(--primary);">選択中: 0 点</div>
-    <button class="btn-submit" onclick="confirmOrder()">発注内容を確認する</button>
+  <div class="footer">
+    <div id="cartCount" style="font-weight:bold; color:var(--main);">選択: 0点</div>
+    <button class="btn-confirm" onclick="openModal()">内容を確認する</button>
   </div>
 
   <div id="modal" class="modal">
-    <div class="modal-content">
-      <h3 style="text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px;">発注内容の確認</h3>
-      <div id="modalUserInfo" style="font-weight: bold; margin-bottom: 15px; color: #555;"></div>
-      
-      <ul id="summaryList" style="padding: 0; list-style: none; margin-bottom: 0;"></ul>
-      
-      <div id="totalBox" class="total-price-box">
-        概算合計: <span id="totalAmount">¥0</span>
-      </div>
-
-      <div style="display: flex; gap: 10px; margin-top: 20px;">
-        <button onclick="closeModal()" style="flex:1; padding: 12px; border:none; border-radius:5px; background:#eee; cursor:pointer; font-weight:bold;">修正に戻る</button>
-        <button id="execBtn" onclick="submitOrder()" style="flex:1; padding: 12px; background: var(--success); color: white; border: none; border-radius: 5px; cursor:pointer; font-weight:bold;">発注確定</button>
+    <div class="modal-inner">
+      <h3 style="text-align:center">発注内容の確認</h3>
+      <div id="summaryList"></div>
+      <div id="totalDisplay" style="text-align:right; font-weight:bold; margin:15px 0; padding:10px; background:#fff3cd; border-radius:5px;"></div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button onclick="closeModal()" style="flex:1; padding:12px; border-radius:5px; border:1px solid #ccc;">戻る</button>
+        <button id="execBtn" onclick="submit()" style="flex:1; padding:12px; border-radius:5px; border:none; background:var(--main); color:#fff; font-weight:bold;">確定</button>
       </div>
     </div>
   </div>
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxHkPGXGknMIIsTniPCGXPpH0MkJS32s_VsNJnSWl5YXr-353ka4Q6c0COK5nAvPgrh/exec'; // ★最新のURLに書き換え
-    let cart = [];
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyihd5fYMRXweyhglCr4Ly7fXbhFPoMMyIBJga7ZDm1SunuKLrZbu6wk-xVSeJGIGje/exec';
+    let masterData = [], logData = [], cart = [];
 
-    // 15行の入力欄を生成（売価を追加）
-    const tbody = document.getElementById('specialOrderBody');
-    for (let i = 0; i < 15; i++) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="sp-name" placeholder="商品名 ${i+1}"></td>
-        <td><input type="url" class="sp-url" placeholder="https://..."></td>
-        <td><input type="number" class="sp-qty" value="1" min="1"></td>
-        <td><input type="number" class="sp-price" placeholder="単価(円)" min="0"></td>
-      `;
-      tbody.appendChild(tr);
+    // 15行の特殊入力欄を生成
+    const spArea = document.getElementById('specialOrderArea');
+    for(let i=1; i<=15; i++) {
+      spArea.innerHTML += `
+        <div class="sp-row">
+          <input type="text" class="sp-name" placeholder="商品名 ${i}">
+          <input type="url" class="sp-url" placeholder="URLを貼り付け">
+          <div style="display:flex; gap:5px;">
+            <input type="number" class="sp-qty" placeholder="数量" min="1" value="1">
+            <input type="number" class="sp-price" placeholder="単価(円)">
+          </div>
+        </div>`;
     }
 
-    // マスタデータの読み込み
     window.onload = async () => {
       try {
         const res = await fetch(GAS_URL);
-        const items = await res.json();
-        const container = document.getElementById('masterList');
-        container.innerHTML = '';
-        items.forEach((item, idx) => {
-          container.innerHTML += `
-            <div class="item-card">
-              <img src="${item.imageUrl || 'https://placehold.jp/70x70.png'}">
-              <div style="flex:1">
-                <div style="font-weight:bold; font-size:0.9em; margin-bottom:5px;">${item.name}</div>
-                <input type="number" id="mq-${idx}" value="1" min="1" style="width:50px; padding:5px;"> 個
-              </div>
-              <button onclick="addMasterItem('${item.name}', ${idx})" style="padding:6px 12px; cursor:pointer; background:var(--primary); color:white; border:none; border-radius:4px;">追加</button>
-            </div>
-          `;
+        const data = await res.json();
+        masterData = data.items;
+        logData = data.logs;
+
+        // 店舗プルダウン反映
+        const selects = [document.getElementById('storeSelect'), document.getElementById('historyFilter')];
+        selects.forEach(s => {
+          s.innerHTML = '<option value="">未選択</option>';
+          data.stores.forEach(st => s.innerHTML += `<option value="${st}">${st}</option>`);
         });
-      } catch(e) { console.error(e); }
+
+        // 定番リスト反映
+        const mList = document.getElementById('masterList');
+        mList.innerHTML = '';
+        masterData.forEach((item, i) => {
+          mList.innerHTML += `
+            <div class="item-row">
+              <span class="item-name">${item.name}</span>
+              <div class="qty-ctrl">
+                <input type="number" id="mq-${i}" value="1" min="1" style="width:55px; margin:0; padding:5px;">
+                <button class="btn-add" onclick="addMaster(${i})">追加</button>
+              </div>
+            </div>`;
+        });
+        renderLogs();
+      } catch(e) { alert("データの読み込みに失敗しました"); }
     };
 
-    function addMasterItem(name, idx) {
-      const qty = document.getElementById(`mq-${idx}`).value;
-      // マスタ品はひとまず売価を空（またはシステム上で別途管理）として扱う
-      cart.push({ name: name, quantity: qty, url: "マスタ内商品", price: "" });
-      
-      // 追加フィードバック
-      const btn = event.target;
-      btn.innerText = '✔';
-      btn.style.background = 'var(--success)';
-      setTimeout(() => { btn.innerText = '追加'; btn.style.background = 'var(--primary)'; }, 700);
-      
-      updateStatus();
+    function switchTab(id) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(id === 'order' ? '発注' : '履歴')));
+      document.querySelectorAll('.content-section').forEach(s => s.classList.toggle('active', s.id === id));
     }
 
-    function updateStatus() {
-      const specialCount = Array.from(document.querySelectorAll('.sp-name')).filter(el => el.value.trim() !== "").length;
-      document.getElementById('cartStatus').innerText = `選択中: ${cart.length + specialCount} 点`;
+    function addMaster(i) {
+      const qty = document.getElementById(`mq-${i}`).value;
+      cart.push({ name: masterData[i].name, quantity: qty, url: 'マスタ品', price: '' });
+      const btn = event.target; btn.innerText = 'OK ✔'; setTimeout(()=> btn.innerText='追加', 800);
+      updateCartCount();
     }
 
-    function confirmOrder() {
+    function updateCartCount() {
+      const spCount = Array.from(document.querySelectorAll('.sp-name')).filter(e => e.value.trim() !== "").length;
+      document.getElementById('cartCount').innerText = `選択: ${cart.length + spCount}点`;
+    }
+
+    function renderLogs() {
+      const filter = document.getElementById('historyFilter').value;
+      const area = document.getElementById('logArea');
+      area.innerHTML = '';
+      const filtered = filter ? logData.filter(l => l.store === filter) : logData;
+      
+      if(filtered.length === 0) area.innerHTML = '<p style="text-align:center; color:#999;">履歴はありません</p>';
+      filtered.forEach(l => {
+        area.innerHTML += `
+          <div class="log-card">
+            <div class="log-date">${l.date} (${l.user})</div>
+            <div class="log-flex"><span>${l.itemName}</span><span>${l.qty}個</span></div>
+            ${l.price ? `<div style="text-align:right; color:red;">¥${(l.price * l.qty).toLocaleString()}</div>` : ''}
+          </div>`;
+      });
+    }
+
+    function openModal() {
       const store = document.getElementById('storeSelect').value;
       const user = document.getElementById('userName').value;
-      if(!store || !user) { alert("店舗と氏名を選択・入力してください"); return; }
+      if(!store || !user) { alert("店舗と名前を入力してください"); return; }
 
-      // データの収集
       const finalItems = [...cart];
-      const names = document.querySelectorAll('.sp-name');
-      const urls = document.querySelectorAll('.sp-url');
-      const qtys = document.querySelectorAll('.sp-qty');
-      const prices = document.querySelectorAll('.sp-price');
+      const spNames = document.querySelectorAll('.sp-name');
+      const spUrls = document.querySelectorAll('.sp-url');
+      const spQtys = document.querySelectorAll('.sp-qty');
+      const spPrices = document.querySelectorAll('.sp-price');
 
-      names.forEach((el, i) => {
-        if(el.value.trim() !== "") {
-          finalItems.push({
-            name: el.value,
-            url: urls[i].value,
-            quantity: qtys[i].value,
-            price: prices[i].value // 売価を取得
-          });
-        }
+      spNames.forEach((el, i) => {
+        if(el.value.trim()) finalItems.push({ name: el.value, url: spUrls[i].value, quantity: spQtys[i].value, price: spPrices[i].value });
       });
 
-      if(finalItems.length === 0) { alert("注文アイテムが一つもありません"); return; }
+      if(finalItems.length === 0) { alert("注文が空です"); return; }
 
-      // モーダルへ描画
-      document.getElementById('modalUserInfo').innerText = `店舗: ${store} / 発注者: ${user}`;
-      const list = document.getElementById('summaryList');
-      list.innerHTML = "";
-      
-      let grandTotal = 0;
-
-      finalItems.forEach(item => {
-        // 金額の計算（未入力の場合は0として扱う）
-        const priceNum = parseInt(item.price) || 0;
-        const qtyNum = parseInt(item.quantity) || 1;
-        const subTotal = priceNum * qtyNum;
-        grandTotal += subTotal;
-
-        // 表示用の文字列（単価が入力されていれば表示）
-        const priceDisplay = priceNum > 0 ? `¥${priceNum.toLocaleString()} × ${qtyNum}個` : `${qtyNum}個`;
-        const subTotalDisplay = priceNum > 0 ? `<b style="color:var(--danger);">小計: ¥${subTotal.toLocaleString()}</b>` : '';
-
-        list.innerHTML += `
-          <li style="border-bottom:1px solid #eee; padding:10px 0;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-              <b>${item.name}</b>
-              <span>${priceDisplay}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.85em;">
-              <span style="color:#888; word-break: break-all; max-width: 70%;">${item.url}</span>
-              ${subTotalDisplay}
-            </div>
-          </li>`;
+      const summary = document.getElementById('summaryList');
+      summary.innerHTML = '';
+      let total = 0;
+      finalItems.forEach((item, i) => {
+        const sub = (parseInt(item.price) || 0) * item.quantity;
+        total += sub;
+        summary.innerHTML += `
+          <div class="sum-item">
+            <div style="flex:1; font-size:0.9em;"><b>${item.name}</b><br><small style="color:#888">${item.url}</small></div>
+            <div style="text-align:right"><b>${item.quantity}個</b><br><small>${sub > 0 ? '¥'+sub.toLocaleString() : ''}</small></div>
+            <button onclick="removeFromCart(${i})" style="margin-left:10px; color:red; border:none; background:none;">×</button>
+          </div>`;
       });
-
-      // 合計金額の表示
-      document.getElementById('totalAmount').innerText = `¥${grandTotal.toLocaleString()}`;
-
-      window.currentOrder = finalItems;
+      document.getElementById('totalDisplay').innerText = `概算合計: ¥${total.toLocaleString()}`;
+      window.tempOrder = finalItems;
       document.getElementById('modal').style.display = 'flex';
+    }
+
+    function removeFromCart(i) {
+      // 実際にはもっと複雑な処理が必要ですが、確認画面での削除を簡易実装
+      window.tempOrder.splice(i, 1);
+      if(i < cart.length) cart.splice(i, 1); 
+      // ポップアップを閉じて再表示する代わりに簡易警告
+      alert("削除しました。再度「内容を確認する」を押してください。");
+      closeModal();
+      updateCartCount();
     }
 
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
-    async function submitOrder() {
+    async function submit() {
       const btn = document.getElementById('execBtn');
       btn.disabled = true; btn.innerText = "送信中...";
-      
-      const payload = {
-        store: document.getElementById('storeSelect').value,
-        user: document.getElementById('userName').value,
-        items: window.currentOrder
-      };
-
+      const payload = { store: document.getElementById('storeSelect').value, user: document.getElementById('userName').value, items: window.tempOrder };
       try {
         const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-        const result = await res.json();
-        if(result.status === "success") {
-          alert("発注が完了しました！");
-          location.reload();
-        }
-      } catch(e) { 
-        alert("通信エラーが発生しました。"); 
-        btn.disabled = false; 
-        btn.innerText = "発注確定"; 
-      }
+        if((await res.json()).status === 'success') { alert("発注しました！"); location.reload(); }
+      } catch(e) { alert("失敗しました"); btn.disabled = false; btn.innerText = "確定"; }
     }
   </script>
 </body>
